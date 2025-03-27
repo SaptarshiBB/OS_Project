@@ -40,53 +40,52 @@ class FileSystem:
         with open(self.journal_file, "wb") as f:
             pickle.dump(self.cache, f)
 
-    def create_file(self, name, content):
-        """Create a file with the given content."""
-        file_path = os.path.join(self.current_dir, name)
+    def create_file(self, file_path, content):
+        """Create a file with the given content at the specified path."""
         try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
             with open(file_path, "w") as f:
                 f.write(content)
             self.cache[file_path] = content
             self.save_journal()
             self.backup_file(file_path)
-            print(f"File '{name}' created in '{self.current_dir}'.")
+            print(f"File '{file_path}' created.")
             return True
         except (IOError, OSError) as e:
             print(f"Error creating file: {e}")
             return False
 
-    def delete_file(self, name):
-        """Delete a file."""
-        file_path = os.path.join(self.current_dir, name)
+    def delete_file(self, file_path):
+        """Delete a file at the specified path."""
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File '{name}' not found in '{self.current_dir}'.")
+            raise FileNotFoundError(f"File '{file_path}' not found.")
         try:
             os.remove(file_path)
             if file_path in self.cache:
                 del self.cache[file_path]
             self.save_journal()
-            print(f"File '{name}' deleted from '{self.current_dir}'.")
+            print(f"File '{file_path}' deleted.")
             return True
         except (IOError, OSError) as e:
             print(f"Error deleting file: {e}")
             return False
 
-    def create_directory(self, name):
-        """Create a new directory in the current directory."""
-        dir_path = os.path.join(self.current_dir, name)
+    def create_directory(self, dir_path):
+        """Create a new directory at the specified path."""
         try:
             os.makedirs(dir_path, exist_ok=True)
-            print(f"Directory '{name}' created in '{self.current_dir}'.")
+            print(f"Directory '{dir_path}' created.")
             return True
         except (IOError, OSError) as e:
             print(f"Error creating directory: {e}")
             return False
 
-    def delete_directory(self, name):
-        """Delete a directory and its contents."""
-        dir_path = os.path.join(self.current_dir, name)
+    def delete_directory(self, dir_path):
+        """Delete a directory and its contents at the specified path."""
         if not os.path.exists(dir_path):
-            raise FileNotFoundError(f"Directory '{name}' not found in '{self.current_dir}'.")
+            raise FileNotFoundError(f"Directory '{dir_path}' not found.")
         try:
             shutil.rmtree(dir_path)
             # Remove any cached files from this directory
@@ -94,21 +93,18 @@ class FileSystem:
                 if cached_path.startswith(dir_path):
                     del self.cache[cached_path]
             self.save_journal()
-            print(f"Directory '{name}' deleted from '{self.current_dir}'.")
+            print(f"Directory '{dir_path}' deleted.")
             return True
         except (IOError, OSError) as e:
             print(f"Error deleting directory: {e}")
             return False
 
-    def rename_file_or_folder(self, old_name, new_name):
+    def rename_file_or_folder(self, old_path, new_path):
         """Rename a file or folder with proper path handling."""
-        old_path = os.path.join(self.current_dir, old_name)
-        new_path = os.path.join(self.current_dir, new_name)
-        
         if not os.path.exists(old_path):
-            raise FileNotFoundError(f"'{old_name}' not found in '{self.current_dir}'.")
+            raise FileNotFoundError(f"'{old_path}' not found.")
         if os.path.exists(new_path):
-            raise FileExistsError(f"'{new_name}' already exists in '{self.current_dir}'.")
+            raise FileExistsError(f"'{new_path}' already exists.")
         
         try:
             os.rename(old_path, new_path)
@@ -117,58 +113,57 @@ class FileSystem:
                 self.cache[new_path] = self.cache.pop(old_path)
             self.save_journal()
             self.backup_file(new_path)
-            print(f"Renamed '{old_name}' to '{new_name}' in '{self.current_dir}'.")
+            print(f"Renamed '{old_path}' to '{new_path}'.")
             return True
         except (IOError, OSError) as e:
             print(f"Error renaming: {e}")
             return False
 
-    def move_file_or_folder(self, name, destination):
+    def move_file_or_folder(self, source_path, destination_dir):
         """Move a file or folder to a new location with proper path handling."""
-        source_path = os.path.join(self.current_dir, name)
         if not os.path.exists(source_path):
-            raise FileNotFoundError(f"'{name}' not found in '{self.current_dir}'.")
+            raise FileNotFoundError(f"'{source_path}' not found.")
         
-        dest_path = os.path.join(destination, name)
+        dest_path = os.path.join(destination_dir, os.path.basename(source_path))
         if os.path.exists(dest_path):
-            raise FileExistsError(f"'{name}' already exists in destination.")
+            raise FileExistsError(f"'{os.path.basename(source_path)}' already exists in destination.")
         
         try:
-            shutil.move(source_path, destination)
+            shutil.move(source_path, destination_dir)
             if source_path in self.cache:
                 del self.cache[source_path]
             self.save_journal()
-            print(f"Moved '{name}' to '{destination}'.")
+            print(f"Moved '{source_path}' to '{destination_dir}'.")
             return True
         except (IOError, OSError) as e:
             print(f"Error moving: {e}")
             return False
 
-    def copy_file_or_folder(self, name, destination):
+    def copy_file_or_folder(self, source_path, destination_dir):
         """Copy a file or folder to a new location."""
-        source_path = os.path.join(self.current_dir, name)
         if not os.path.exists(source_path):
-            raise FileNotFoundError(f"'{name}' not found in '{self.current_dir}'.")
+            raise FileNotFoundError(f"'{source_path}' not found.")
         
-        dest_path = os.path.join(destination, name)
+        dest_path = os.path.join(destination_dir, os.path.basename(source_path))
         if os.path.exists(dest_path):
-            raise FileExistsError(f"'{name}' already exists in destination.")
+            raise FileExistsError(f"'{os.path.basename(source_path)}' already exists in destination.")
         
         try:
             if os.path.isdir(source_path):
                 shutil.copytree(source_path, dest_path)
             else:
                 shutil.copy2(source_path, dest_path)
-            print(f"Copied '{name}' to '{destination}'.")
+            print(f"Copied '{source_path}' to '{destination_dir}'.")
             return True
         except (IOError, OSError) as e:
             print(f"Error copying: {e}")
             return False
 
-    def list_files_and_folders(self):
-        """List all files and directories in the current directory."""
+    def list_files_and_folders(self, path=None):
+        """List all files and directories in the specified directory (or current if None)."""
+        target_dir = path if path else self.current_dir
         try:
-            return os.listdir(self.current_dir)
+            return os.listdir(target_dir)
         except (IOError, OSError) as e:
             print(f"Error listing directory: {e}")
             return []
@@ -198,36 +193,38 @@ class FileSystem:
             print(f"Error creating backup: {e}")
             return False
 
-    def restore_file(self, name):
-        """Restore a file from the backup directory."""
-        backup_path = os.path.join(self.backup_dir, name)
+    def restore_file(self, backup_name, restore_path=None):
+        """Restore a file from the backup directory to the specified path (or original if None)."""
+        backup_path = os.path.join(self.backup_dir, backup_name)
         if not os.path.exists(backup_path):
-            raise FileNotFoundError(f"Backup for '{name}' not found.")
+            raise FileNotFoundError(f"Backup for '{backup_name}' not found.")
+        
+        if restore_path is None:
+            restore_path = os.path.join(self.current_dir, backup_name)
+        
         try:
-            restore_path = os.path.join(self.current_dir, name)
             shutil.copy2(backup_path, restore_path)
             # Update cache
             with open(restore_path, "r") as f:
                 self.cache[restore_path] = f.read()
             self.save_journal()
-            print(f"File '{name}' restored from backup.")
+            print(f"File '{backup_name}' restored to '{restore_path}'.")
             return True
         except (IOError, OSError) as e:
             print(f"Error restoring file: {e}")
             return False
 
-    def corrupt_file(self, name):
+    def corrupt_file(self, file_path):
         """Simulate file corruption by overwriting with random data."""
-        file_path = os.path.join(self.current_dir, name)
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File '{name}' not found in '{self.current_dir}'.")
+            raise FileNotFoundError(f"File '{file_path}' not found.")
         try:
             with open(file_path, "wb") as f:
                 f.write(os.urandom(100))  # Overwrite with 100 random bytes
             if file_path in self.cache:
                 del self.cache[file_path]
             self.save_journal()
-            print(f"File '{name}' corrupted.")
+            print(f"File '{file_path}' corrupted.")
             return True
         except (IOError, OSError) as e:
             print(f"Error corrupting file: {e}")
@@ -319,190 +316,208 @@ class FileSystemGUI:
         self.dir_label.config(text=f"Current Directory: {self.fs.current_dir}")
 
     def create_file(self):
-        """Create a file."""
-        name = filedialog.asksaveasfilename(
+        """Create a file at any location."""
+        file_path = filedialog.asksaveasfilename(
             title="Create File",
             initialdir=self.fs.current_dir,
             defaultextension=".txt",
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
         )
-        if name:
+        if file_path:
             content = simpledialog.askstring("File Content", "Enter file content:")
             if content is not None:  # User pressed OK
-                success = self.fs.create_file(os.path.basename(name), content)
-                if success:
-                    self.console.insert(tk.END, f"File '{os.path.basename(name)}' created.\n")
-                else:
-                    self.console.insert(tk.END, f"Failed to create file '{os.path.basename(name)}'.\n")
+                try:
+                    success = self.fs.create_file(file_path, content)
+                    if success:
+                        self.console.insert(tk.END, f"File '{file_path}' created.\n")
+                    else:
+                        self.console.insert(tk.END, f"Failed to create file '{file_path}'.\n")
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
 
     def open_file(self):
         """Open a file with the system's default application."""
-        name = filedialog.askopenfilename(
+        file_path = filedialog.askopenfilename(
             title="Open File",
             initialdir=self.fs.current_dir
         )
-        if name:
+        if file_path:
             try:
                 # Platform-specific file opening
                 if platform.system() == 'Windows':
-                    os.startfile(name)
+                    os.startfile(file_path)
                 elif platform.system() == 'Darwin':  # macOS
-                    subprocess.call(('open', name))
+                    subprocess.call(('open', file_path))
                 else:  # Linux and other Unix-like systems
-                    subprocess.call(('xdg-open', name))
+                    subprocess.call(('xdg-open', file_path))
                 
-                self.console.insert(tk.END, f"Opened file '{os.path.basename(name)}' with default application.\n")
+                self.console.insert(tk.END, f"Opened file '{file_path}' with default application.\n")
             except Exception as e:
                 messagebox.showerror("Error", f"Could not open file: {str(e)}")
 
     def open_folder(self):
         """Open a folder in the system's file explorer."""
-        folder = filedialog.askdirectory(
+        folder_path = filedialog.askdirectory(
             title="Open Folder",
             initialdir=self.fs.current_dir
         )
-        if folder:
+        if folder_path:
             try:
                 if platform.system() == 'Windows':
-                    os.startfile(folder)
+                    os.startfile(folder_path)
                 elif platform.system() == 'Darwin':  # macOS
-                    subprocess.call(('open', folder))
+                    subprocess.call(('open', folder_path))
                 else:  # Linux and other Unix-like systems
-                    subprocess.call(('xdg-open', folder))
+                    subprocess.call(('xdg-open', folder_path))
                 
-                self.console.insert(tk.END, f"Opened folder '{os.path.basename(folder)}' in file explorer.\n")
+                self.console.insert(tk.END, f"Opened folder '{folder_path}' in file explorer.\n")
             except Exception as e:
                 messagebox.showerror("Error", f"Could not open folder: {str(e)}")
 
     def delete_file(self):
-        """Delete a file."""
-        name = filedialog.askopenfilename(
+        """Delete a file at any location."""
+        file_path = filedialog.askopenfilename(
             title="Delete File",
             initialdir=self.fs.current_dir
         )
-        if name:
+        if file_path:
             try:
-                success = self.fs.delete_file(os.path.basename(name))
+                success = self.fs.delete_file(file_path)
                 if success:
-                    self.console.insert(tk.END, f"File '{os.path.basename(name)}' deleted.\n")
+                    self.console.insert(tk.END, f"File '{file_path}' deleted.\n")
                 else:
-                    self.console.insert(tk.END, f"Failed to delete file '{os.path.basename(name)}'.\n")
+                    self.console.insert(tk.END, f"Failed to delete file '{file_path}'.\n")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
     def create_directory(self):
-        """Create a directory."""
-        name = simpledialog.askstring("Create Directory", "Enter directory name:")
-        if name:
-            success = self.fs.create_directory(name)
-            if success:
-                self.console.insert(tk.END, f"Directory '{name}' created.\n")
-            else:
-                self.console.insert(tk.END, f"Failed to create directory '{name}'.\n")
+        """Create a directory at any location."""
+        dir_path = filedialog.askdirectory(
+            title="Select Parent Directory",
+            initialdir=self.fs.current_dir
+        )
+        if dir_path:
+            name = simpledialog.askstring("Create Directory", "Enter directory name:")
+            if name:
+                full_path = os.path.join(dir_path, name)
+                try:
+                    success = self.fs.create_directory(full_path)
+                    if success:
+                        self.console.insert(tk.END, f"Directory '{full_path}' created.\n")
+                    else:
+                        self.console.insert(tk.END, f"Failed to create directory '{full_path}'.\n")
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
 
     def delete_directory(self):
-        """Delete a directory."""
-        name = filedialog.askdirectory(
+        """Delete a directory at any location."""
+        dir_path = filedialog.askdirectory(
             title="Delete Directory",
             initialdir=self.fs.current_dir
         )
-        if name:
+        if dir_path:
             try:
-                success = self.fs.delete_directory(os.path.basename(name))
+                success = self.fs.delete_directory(dir_path)
                 if success:
-                    self.console.insert(tk.END, f"Directory '{os.path.basename(name)}' deleted.\n")
+                    self.console.insert(tk.END, f"Directory '{dir_path}' deleted.\n")
                 else:
-                    self.console.insert(tk.END, f"Failed to delete directory '{os.path.basename(name)}'.\n")
+                    self.console.insert(tk.END, f"Failed to delete directory '{dir_path}'.\n")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
     def rename_file_or_folder(self):
-        """Rename a file or folder."""
-        old_name = filedialog.askopenfilename(
+        """Rename a file or folder at any location."""
+        old_path = filedialog.askopenfilename(
             title="Select File/Folder to Rename",
             initialdir=self.fs.current_dir
         )
-        if not old_name:
-            old_name = filedialog.askdirectory(
+        if not old_path:
+            old_path = filedialog.askdirectory(
                 title="Select File/Folder to Rename",
                 initialdir=self.fs.current_dir
             )
         
-        if old_name:
+        if old_path:
             new_name = simpledialog.askstring("Rename", "Enter new name:")
             if new_name:
+                new_path = os.path.join(os.path.dirname(old_path), new_name)
                 try:
-                    success = self.fs.rename_file_or_folder(os.path.basename(old_name), new_name)
+                    success = self.fs.rename_file_or_folder(old_path, new_path)
                     if success:
-                        self.console.insert(tk.END, f"Renamed '{os.path.basename(old_name)}' to '{new_name}'.\n")
+                        self.console.insert(tk.END, f"Renamed '{old_path}' to '{new_path}'.\n")
                     else:
-                        self.console.insert(tk.END, f"Failed to rename '{os.path.basename(old_name)}'.\n")
+                        self.console.insert(tk.END, f"Failed to rename '{old_path}'.\n")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
 
     def move_file_or_folder(self):
-        """Move a file or folder."""
-        name = filedialog.askopenfilename(
+        """Move a file or folder from any location to any location."""
+        source_path = filedialog.askopenfilename(
             title="Select File/Folder to Move",
             initialdir=self.fs.current_dir
         )
-        if not name:
-            name = filedialog.askdirectory(
+        if not source_path:
+            source_path = filedialog.askdirectory(
                 title="Select File/Folder to Move",
                 initialdir=self.fs.current_dir
             )
         
-        if name:
-            destination = filedialog.askdirectory(
-                title="Select Destination",
+        if source_path:
+            destination_dir = filedialog.askdirectory(
+                title="Select Destination Directory",
                 initialdir=self.fs.current_dir
             )
-            if destination:
+            if destination_dir:
                 try:
-                    success = self.fs.move_file_or_folder(os.path.basename(name), destination)
+                    success = self.fs.move_file_or_folder(source_path, destination_dir)
                     if success:
-                        self.console.insert(tk.END, f"Moved '{os.path.basename(name)}' to '{destination}'.\n")
+                        self.console.insert(tk.END, f"Moved '{source_path}' to '{destination_dir}'.\n")
                     else:
-                        self.console.insert(tk.END, f"Failed to move '{os.path.basename(name)}'.\n")
+                        self.console.insert(tk.END, f"Failed to move '{source_path}'.\n")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
 
     def copy_file_or_folder(self):
-        """Copy a file or folder."""
-        name = filedialog.askopenfilename(
+        """Copy a file or folder from any location to any location."""
+        source_path = filedialog.askopenfilename(
             title="Select File/Folder to Copy",
             initialdir=self.fs.current_dir
         )
-        if not name:
-            name = filedialog.askdirectory(
+        if not source_path:
+            source_path = filedialog.askdirectory(
                 title="Select File/Folder to Copy",
                 initialdir=self.fs.current_dir
             )
         
-        if name:
-            destination = filedialog.askdirectory(
-                title="Select Destination",
+        if source_path:
+            destination_dir = filedialog.askdirectory(
+                title="Select Destination Directory",
                 initialdir=self.fs.current_dir
             )
-            if destination:
+            if destination_dir:
                 try:
-                    success = self.fs.copy_file_or_folder(os.path.basename(name), destination)
+                    success = self.fs.copy_file_or_folder(source_path, destination_dir)
                     if success:
-                        self.console.insert(tk.END, f"Copied '{os.path.basename(name)}' to '{destination}'.\n")
+                        self.console.insert(tk.END, f"Copied '{source_path}' to '{destination_dir}'.\n")
                     else:
-                        self.console.insert(tk.END, f"Failed to copy '{os.path.basename(name)}'.\n")
+                        self.console.insert(tk.END, f"Failed to copy '{source_path}'.\n")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
 
     def list_files_and_folders(self):
-        """List files and folders."""
-        try:
-            files = self.fs.list_files_and_folders()
-            self.console.insert(tk.END, f"Files/Folders in '{self.fs.current_dir}':\n")
-            for item in files:
-                self.console.insert(tk.END, f"- {item}\n")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+        """List files and folders in any directory."""
+        dir_path = filedialog.askdirectory(
+            title="Select Directory to List",
+            initialdir=self.fs.current_dir
+        )
+        if dir_path:
+            try:
+                files = self.fs.list_files_and_folders(dir_path)
+                self.console.insert(tk.END, f"Files/Folders in '{dir_path}':\n")
+                for item in files:
+                    self.console.insert(tk.END, f"- {item}\n")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
 
     def change_directory(self):
         """Change the current directory."""
@@ -540,36 +555,43 @@ class FileSystemGUI:
             self.console.insert(tk.END, "Defragmentation failed.\n")
 
     def corrupt_file(self):
-        """Corrupt a file."""
-        name = filedialog.askopenfilename(
+        """Corrupt a file at any location."""
+        file_path = filedialog.askopenfilename(
             title="Select File to Corrupt",
             initialdir=self.fs.current_dir
         )
-        if name:
+        if file_path:
             try:
-                success = self.fs.corrupt_file(os.path.basename(name))
+                success = self.fs.corrupt_file(file_path)
                 if success:
-                    self.console.insert(tk.END, f"File '{os.path.basename(name)}' corrupted.\n")
+                    self.console.insert(tk.END, f"File '{file_path}' corrupted.\n")
                 else:
-                    self.console.insert(tk.END, f"Failed to corrupt file '{os.path.basename(name)}'.\n")
+                    self.console.insert(tk.END, f"Failed to corrupt file '{file_path}'.\n")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
     def restore_file(self):
-        """Restore a file from backup."""
-        name = filedialog.askopenfilename(
-            title="Select File to Restore",
-            initialdir=self.fs.current_dir
+        """Restore a file from backup to any location."""
+        backup_file = filedialog.askopenfilename(
+            title="Select Backup File to Restore",
+            initialdir=self.fs.backup_dir
         )
-        if name:
-            try:
-                success = self.fs.restore_file(os.path.basename(name))
-                if success:
-                    self.console.insert(tk.END, f"File '{os.path.basename(name)}' restored from backup.\n")
-                else:
-                    self.console.insert(tk.END, f"Failed to restore file '{os.path.basename(name)}'.\n")
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+        if backup_file:
+            restore_path = filedialog.asksaveasfilename(
+                title="Select Restore Location",
+                initialdir=self.fs.current_dir,
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            if restore_path:
+                try:
+                    success = self.fs.restore_file(os.path.basename(backup_file), restore_path)
+                    if success:
+                        self.console.insert(tk.END, f"File restored to '{restore_path}' from backup.\n")
+                    else:
+                        self.console.insert(tk.END, f"Failed to restore file to '{restore_path}'.\n")
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
 
 # Main Function
 if __name__ == "__main__":
