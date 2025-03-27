@@ -281,7 +281,8 @@ class FileSystemGUI:
 
         tk.Button(file_frame, text="Create File", command=self.create_file).grid(row=0, column=0, padx=5, pady=5)
         tk.Button(file_frame, text="Open File", command=self.open_file).grid(row=0, column=1, padx=5, pady=5)
-        tk.Button(file_frame, text="Delete File", command=self.delete_file).grid(row=0, column=2, padx=5, pady=5)
+        tk.Button(file_frame, text="Open Folder", command=self.open_folder).grid(row=0, column=2, padx=5, pady=5)
+        tk.Button(file_frame, text="Delete File", command=self.delete_file).grid(row=0, column=3, padx=5, pady=5)
 
         # Frame for directory operations
         dir_frame = tk.LabelFrame(self.root, text="Directory Operations", padx=10, pady=10)
@@ -353,6 +354,25 @@ class FileSystemGUI:
                 self.console.insert(tk.END, f"Opened file '{os.path.basename(name)}' with default application.\n")
             except Exception as e:
                 messagebox.showerror("Error", f"Could not open file: {str(e)}")
+
+    def open_folder(self):
+        """Open a folder in the system's file explorer."""
+        folder = filedialog.askdirectory(
+            title="Open Folder",
+            initialdir=self.fs.current_dir
+        )
+        if folder:
+            try:
+                if platform.system() == 'Windows':
+                    os.startfile(folder)
+                elif platform.system() == 'Darwin':  # macOS
+                    subprocess.call(('open', folder))
+                else:  # Linux and other Unix-like systems
+                    subprocess.call(('xdg-open', folder))
+                
+                self.console.insert(tk.END, f"Opened folder '{os.path.basename(folder)}' in file explorer.\n")
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not open folder: {str(e)}")
 
     def delete_file(self):
         """Delete a file."""
