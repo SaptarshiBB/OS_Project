@@ -347,13 +347,15 @@ class FileSystemGUI:
             ('Create File', self.create_file, 'Success.TButton', '📝'),
             ('Open File', self.open_file, 'Primary.TButton', '📂'),
             ('Delete File', self.delete_file, 'Danger.TButton', '❌'),
+            ('Rename File', self.rename_file, 'Primary.TButton', '✏️'),
+            ('Move File', self.move_file, 'Primary.TButton', '➡️'),
             ('Corrupt File', self.corrupt_file, 'Warning.TButton', '⚠️')
         ]
         
         for i, (text, command, style, icon) in enumerate(buttons):
             btn = ttk.Button(frame, text=f"{icon} {text}", command=command, style=style)
-            btn.grid(row=0, column=i, padx=5, pady=5, sticky='ew')
-            frame.grid_columnconfigure(i, weight=1)
+            btn.grid(row=i//3, column=i%3, padx=5, pady=5, sticky='ew')
+            frame.grid_columnconfigure(i%3, weight=1)
 
     def create_directory_operations_tab(self, notebook):
         tab = ttk.Frame(notebook)
@@ -365,14 +367,16 @@ class FileSystemGUI:
         buttons = [
             ('Create Directory', self.create_directory, 'Success.TButton', '📁'),
             ('Delete Directory', self.delete_directory, 'Danger.TButton', '🗑️'),
-            ('Rename File/Folder', self.rename_file_or_folder, 'Primary.TButton', '✏️'),
-            ('Change Directory', self.change_directory, 'Primary.TButton', '🔄')
+            ('Rename Folder', self.rename_folder, 'Primary.TButton', '✏️'),
+            ('Move Folder', self.move_folder, 'Primary.TButton', '➡️'),
+            ('Change Directory', self.change_directory, 'Primary.TButton', '🔄'),
+            ('List Contents', self.list_files_and_folders, 'Primary.TButton', '📜')
         ]
         
         for i, (text, command, style, icon) in enumerate(buttons):
             btn = ttk.Button(frame, text=f"{icon} {text}", command=command, style=style)
-            btn.grid(row=0, column=i, padx=5, pady=5, sticky='ew')
-            frame.grid_columnconfigure(i, weight=1)
+            btn.grid(row=i//3, column=i%3, padx=5, pady=5, sticky='ew')
+            frame.grid_columnconfigure(i%3, weight=1)
 
     def create_advanced_operations_tab(self, notebook):
         tab = ttk.Frame(notebook)
@@ -382,9 +386,9 @@ class FileSystemGUI:
         frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         buttons = [
-            ('Move File/Folder', self.move_file_or_folder, 'Primary.TButton', '➡️'),
             ('Copy File/Folder', self.copy_file_or_folder, 'Primary.TButton', '📋'),
-            ('List Contents', self.list_files_and_folders, 'Primary.TButton', '📜')
+            ('Open Folder', self.open_folder, 'Primary.TButton', '📂'),
+            ('Defragment', self.defragment, 'Primary.TButton', '🔧')
         ]
         
         for i, (text, command, style, icon) in enumerate(buttons):
@@ -401,8 +405,8 @@ class FileSystemGUI:
         
         buttons = [
             ('Simulate Crash', self.simulate_crash, 'Warning.TButton', '💥'),
-            ('Defragment', self.defragment, 'Primary.TButton', '🔧'),
-            ('Restore File', self.restore_file, 'Success.TButton', '⏮️')
+            ('Restore File', self.restore_file, 'Success.TButton', '⏮️'),
+            ('Backup Now', self.backup_now, 'Primary.TButton', '💾')
         ]
         
         for i, (text, command, style, icon) in enumerate(buttons):
@@ -410,7 +414,6 @@ class FileSystemGUI:
             btn.grid(row=0, column=i, padx=5, pady=5, sticky='ew')
             frame.grid_columnconfigure(i, weight=1)
 
-    # All original methods remain unchanged below...
     def update_dir_label(self):
         self.dir_label.config(text=f"📁 Current Directory: {self.fs.current_dir}")
 
@@ -515,18 +518,13 @@ class FileSystemGUI:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
-    def rename_file_or_folder(self):
+    def rename_file(self):
         old_path = filedialog.askopenfilename(
-            title="Select File/Folder to Rename",
+            title="Select File to Rename",
             initialdir=self.fs.current_dir
         )
-        if not old_path:
-            old_path = filedialog.askdirectory(
-                title="Select File/Folder to Rename",
-                initialdir=self.fs.current_dir
-            )
         if old_path:
-            new_name = simpledialog.askstring("Rename", "Enter new name:")
+            new_name = simpledialog.askstring("Rename File", "Enter new name:")
             if new_name:
                 new_path = os.path.join(os.path.dirname(old_path), new_name)
                 try:
@@ -538,16 +536,29 @@ class FileSystemGUI:
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
 
-    def move_file_or_folder(self):
-        source_path = filedialog.askopenfilename(
-            title="Select File/Folder to Move",
+    def rename_folder(self):
+        old_path = filedialog.askdirectory(
+            title="Select Folder to Rename",
             initialdir=self.fs.current_dir
         )
-        if not source_path:
-            source_path = filedialog.askdirectory(
-                title="Select File/Folder to Move",
-                initialdir=self.fs.current_dir
-            )
+        if old_path:
+            new_name = simpledialog.askstring("Rename Folder", "Enter new name:")
+            if new_name:
+                new_path = os.path.join(os.path.dirname(old_path), new_name)
+                try:
+                    success = self.fs.rename_file_or_folder(old_path, new_path)
+                    if success:
+                        self.console.insert(tk.END, f"Renamed '{old_path}' to '{new_path}'.\n")
+                    else:
+                        self.console.insert(tk.END, f"Failed to rename '{old_path}'.\n")
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+
+    def move_file(self):
+        source_path = filedialog.askopenfilename(
+            title="Select File to Move",
+            initialdir=self.fs.current_dir
+        )
         if source_path:
             destination_dir = filedialog.askdirectory(
                 title="Select Destination Directory",
@@ -557,9 +568,29 @@ class FileSystemGUI:
                 try:
                     success = self.fs.move_file_or_folder(source_path, destination_dir)
                     if success:
-                        self.console.insert(tk.END, f"Moved '{source_path}' to '{destination_dir}'.\n")
+                        self.console.insert(tk.END, f"Moved file '{source_path}' to '{destination_dir}'.\n")
                     else:
-                        self.console.insert(tk.END, f"Failed to move '{source_path}'.\n")
+                        self.console.insert(tk.END, f"Failed to move file '{source_path}'.\n")
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+
+    def move_folder(self):
+        source_path = filedialog.askdirectory(
+            title="Select Folder to Move",
+            initialdir=self.fs.current_dir
+        )
+        if source_path:
+            destination_dir = filedialog.askdirectory(
+                title="Select Destination Directory",
+                initialdir=self.fs.current_dir
+            )
+            if destination_dir:
+                try:
+                    success = self.fs.move_file_or_folder(source_path, destination_dir)
+                    if success:
+                        self.console.insert(tk.END, f"Moved folder '{source_path}' to '{destination_dir}'.\n")
+                    else:
+                        self.console.insert(tk.END, f"Failed to move folder '{source_path}'.\n")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
 
@@ -670,6 +701,20 @@ class FileSystemGUI:
                         self.console.insert(tk.END, f"Failed to restore file to '{restore_path}'.\n")
                 except Exception as e:
                     messagebox.showerror("Error", str(e))
+
+    def backup_now(self):
+        try:
+            # Backup all files in current directory
+            files = [f for f in os.listdir(self.fs.current_dir) 
+                    if os.path.isfile(os.path.join(self.fs.current_dir, f))]
+            
+            for file in files:
+                file_path = os.path.join(self.fs.current_dir, file)
+                self.fs.backup_file(file_path)
+            
+            self.console.insert(tk.END, f"Backup completed for {len(files)} files.\n")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
 if __name__ == "__main__":
     root = tk.Tk()
